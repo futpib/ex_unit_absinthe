@@ -3,6 +3,7 @@ defmodule ExUnitAbsinthe.Case do
     quote do
       import ExUnitAbsinthe.Case, only: [
         absinthe_schema: 1,
+        absinthe_inspect_responses: 1,
         absinthe_test: 2,
         absinthe_test: 3,
         absinthe_test: 4,
@@ -15,13 +16,18 @@ defmodule ExUnitAbsinthe.Case do
     nil
   end
 
+  defmacro absinthe_inspect_responses(should_inspect_responses) do
+    Module.put_attribute(__CALLER__.module, :ex_unit_absinthe_should_inspect_responses, should_inspect_responses)
+    nil
+  end
+
   defmacro absinthe_test(query, assertion) do
     query = normalize_query(query)
 
     do_absinthe_test(query, quote(do: _), to_contents(__CALLER__.module, query, assertion))
   end
 
-  defmacro absinthe_test(title, query, var \\ quote(do: _), assertion) do
+  defmacro absinthe_test(title, query, var \\ quote(do: context), assertion) do
     query = normalize_query(query)
 
     do_absinthe_test(title, var, to_contents(__CALLER__.module, query, assertion))
@@ -41,9 +47,14 @@ defmodule ExUnitAbsinthe.Case do
     assertions = assertion_to_contents(assertion)
 
     schema = Module.get_attribute(module, :ex_unit_absinthe_schema)
+    should_inspect_responses = Module.get_attribute(module, :ex_unit_absinthe_should_inspect_responses) === true
 
     quote do
       results = Absinthe.run!(unquote(query), unquote(schema))
+
+      if unquote(should_inspect_responses) do
+        IO.inspect(results, limit: :infinity)
+      end
 
       case results do
         %{ errors: errors } ->
