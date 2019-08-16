@@ -4,7 +4,7 @@ defmodule ExUnitAbsinthe.MixProject do
   def project do
     [
       app: :ex_unit_absinthe,
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.8",
       description: description(),
       package: package(),
