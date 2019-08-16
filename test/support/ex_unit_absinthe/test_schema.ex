@@ -13,5 +13,18 @@ defmodule ExUnitAbsinthe.TestSchema do
         {:ok, %{test_field: x}}
       end
     end
+
+    field :test_list_query, list_of(non_null(:test_type)) do
+      arg :test_arg, :string
+      arg :count, non_null(:integer)
+
+      resolve fn %{test_arg: x, count: count}, _ ->
+        {
+          :ok,
+          1..count
+          |> Enum.map(fn _ -> %{test_field: x} end)
+        }
+      end
+    end
   end
 end

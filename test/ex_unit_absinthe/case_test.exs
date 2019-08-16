@@ -40,4 +40,24 @@ defmodule ExUnitAbsinthe.CaseTest do
       }
     }
   end
+
+  absinthe_test "test list of items without count", """
+  testListQuery(testArg: "foo", count: 5) {
+    testField
+  }
+  """, %{
+    test_list_query: absinthe_list_of %{
+      test_field: &(&1 === "foo")
+    }
+  }
+
+  absinthe_test "test list of items with count", """
+  testListQuery(testArg: "foo", count: 7) {
+    testField
+  }
+  """, %{
+    test_list_query: absinthe_list_of(%{
+      test_field: &(&1 === "foo")
+    }, count: &(&1 === 7))
+  }
 end

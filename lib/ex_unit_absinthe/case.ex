@@ -79,14 +79,34 @@ defmodule ExUnitAbsinthe.Case do
   defp assertion_to_path_predicate_pairs({:%{}, _, kvs}) do
     kvs
     |> Enum.flat_map(fn {key, value} ->
-      key =
-        key
-        |> Atom.to_string()
-        |> Recase.to_camel()
+      key = atom_to_string(key)
 
       assertion_to_path_predicate_pairs(value)
-      |> Enum.map(fn { path, predicate } -> { [key|path], predicate } end)
+      |> Enum.map(fn { path, predicate } -> { [key | path], predicate } end)
     end)
+  end
+
+  defp assertion_to_path_predicate_pairs({:absinthe_list_of, _, [ {:%{}, _, kvs} ]}) do
+    kvs
+    |> Enum.flat_map(fn {key, value} ->
+      key = atom_to_string(key)
+
+      assertion_to_path_predicate_pairs(value)
+      |> Enum.map(fn { path, predicate } -> { [], {:absinthe_list_of, [key | path], predicate} } end)
+    end)
+  end
+
+  defp assertion_to_path_predicate_pairs({:absinthe_list_of, _, [ assertion, [ count: count ] ]}) do
+    [
+      {
+        [],
+        quote do
+          fn list ->
+            unquote(count).(Enum.count(list))
+          end
+        end
+      }
+    ] ++ assertion_to_path_predicate_pairs({:absinthe_list_of, nil, [ assertion ]})
   end
 
   defp assertion_to_path_predicate_pairs(predicate) do
@@ -95,13 +115,33 @@ defmodule ExUnitAbsinthe.Case do
     ]
   end
 
+  defp atom_to_string(key) do
+    key
+    |> Atom.to_string()
+    |> Recase.to_camel()
+  end
+
   defp path_predicate_pairs_to_contents(path_predicate_pairs) do
     path_predicate_pairs
-    |> Enum.map(fn { path, predicate } ->
-      quote do
-        assert unquote(predicate).(get_in(data, unquote(Macro.escape(path))))
-      end
-    end)
+    |> Enum.map(&path_predicate_pair_to_contents/1)
+  end
+
+  defp path_predicate_pair_to_contents({ path, predicate }) do
+    case predicate do
+      {:absinthe_list_of, item_path, item_predicate} ->
+        quote do
+          data
+          |> get_in(unquote(Macro.escape(path)))
+          |> Enum.each(fn data ->
+            unquote(path_predicate_pair_to_contents({item_path, item_predicate}))
+          end)
+        end
+
+      predicate ->
+        quote do
+          assert unquote(predicate).(get_in(data, unquote(Macro.escape(path))))
+        end
+    end
   end
 
   defp do_absinthe_test(title, var, contents) do
